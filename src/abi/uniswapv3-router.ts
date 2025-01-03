@@ -1,4 +1,4 @@
-export const UNISWAP_V3_ROUTER_ABI = 
+export const UNISWAP_V3_ROUTER_ABI:any = 
 [
   {
     "inputs": [

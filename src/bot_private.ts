@@ -7,6 +7,7 @@ import * as uniconst from './uniconst'
 import assert from 'assert'
 import dotenv from 'dotenv'
 import * as swapManager from './swap_manager'
+import { stat } from 'fs'
 
 dotenv.config()
 
@@ -307,6 +308,30 @@ Tap confirm button to proceed`
 
 		await instance.sendInfoMessage(sessionId, `✅ Buy slippage value has been updated to ${value}%`)
 		instance.executeCommand(stateData.sessionId, stateData.messageId, stateData.callbackQueryId, {c: OptionCode.MAIN_SNIPE, k:0 })
+	} else if (stateNode.state === StateCode.WAIT_ADD_MANUAL_BUYER_TOKEN) {
+
+		const sessionId = stateNode.data.sessionId
+		const value = msg.text.trim()
+		if (!utils.isValidAddress(value)) {
+			instance.sendInfoMessage(sessionId, `🚫 Sorry, the address you entered is invalid. Please input again`)
+			return
+		}
+
+		const tokenInfo = await utils.getTokenInfo(value)
+		if (!tokenInfo) {
+			instance.sendInfoMessage(sessionId, `🚫 Sorry, the address you entered is invalid.`)
+			return
+		}
+
+		stateData.tokenAddress = tokenInfo.address
+
+		//Database store
+
+
+		await instance.removeMessage(sessionId, msg.message_id)
+
+		await instance.executeCommand(sessionId, undefined, undefined, {c: OptionCode.MAIN_SET_MANUAL_BUYER_PARAM, k:1 })
+
 	} else if (stateNode.state === StateCode.WAIT_SET_MSG_BUYXAMOUNT) {
 
 		const value = Number(msg.text.trim())
@@ -352,12 +377,50 @@ Tap confirm button to proceed`
 
 		stateData.amount = value
 
-		const tokenInfo = await utils.getTokenInfo(stateData.tokenAddress)
-		await database.addTokenSnipping(session.chatid, stateData.tokenAddress, tokenInfo.name, tokenInfo.symbol, tokenInfo.decimals, value)
+		await instance.removeMessage(sessionId, msg.message_id)
 
-		await instance.sendInfoMessage(session.chatid, `✅ Token has been added to snippet list.
+		const msg2 = `Reply to this message with the auto tip amount to snipe`
+		await instance.sendReplyMessage(sessionId, msg2)
+		instance.stateMap_setFocus(sessionId, StateCode.WAIT_SET_SNIPE_TIP_AMOUNT, stateData)
+
+// 		const tokenInfo = await utils.getTokenInfo(stateData.tokenAddress)
+// 		await database.addTokenSnipping(session.chatid, stateData.tokenAddress, tokenInfo.name, tokenInfo.symbol, tokenInfo.decimals, value)
+
+// 		await instance.sendInfoMessage(session.chatid, `✅ Token has been added to snippet list.
+// Token: <code>${tokenInfo.name} (${tokenInfo.symbol})</code>
+// Address: <code>${stateData.tokenAddress}</code>
+// Quote Token Amount: <code>${utils.roundDecimal(value, 5)} ${afx.quoteToken.symbol}</code>`)
+	} else if (stateNode.state === StateCode.WAIT_SET_SNIPE_TIP_AMOUNT) {
+
+		const value = Number(msg.text.trim())
+		if (value < 0.00001 || !value || isNaN(value)) {
+			instance.sendInfoMessage(sessionId, `🚫 Sorry, the value you entered is invalid. it must be greater than 0.001`)
+			return
+		}
+
+		const messageId = stateNode.data.messageId
+
+		stateData.snipeTip = value
+		console.log(`--------- amount : `, stateData.amount)
+
+		await instance.removeMessage(sessionId, msg.message_id)
+
+		const tokenInfo = await utils.getTokenInfo(stateData.tokenAddress)
+
+		if (tokenInfo) {
+			
+			await database.addTokenSnipping(session.chatid, stateData.tokenAddress, tokenInfo.name, tokenInfo.symbol, tokenInfo.decimals, stateData.amount, stateData.snipeTip)
+
+			await instance.sendInfoMessage(session.chatid, `✅ Token has been added to snippet list.
 Token: <code>${tokenInfo.name} (${tokenInfo.symbol})</code>
-Address: <code>${stateData.tokenAddress}</code>
-Quote Token Amount: <code>${utils.roundDecimal(value, 5)} ${afx.quoteToken.symbol}</code>`)
+CA : <code>${stateData.tokenAddress}</code>
+Quote Token Amount: <code>${utils.roundDecimal(stateData.amount, 5)} ${afx.quoteToken.symbol}</code>
+Snipe Tip Amount: <code>${utils.roundDecimal(stateData.snipeTip, 5)} ${afx.quoteToken.symbol}</code>`)
+
+		} else {
+			await instance.sendInfoMessage(session.chatid, `⚠️ Error
+Token is already live`)
+		}
+		
 	} 
 }

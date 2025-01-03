@@ -679,3 +679,55 @@ export const getPool = async (token0: string, token1: string) : Promise<string> 
 
     return result
 }
+
+export async function getGasPrices(web3: any): Promise<any> {
+    try {
+        const gasPrice = await web3.eth.getGasPrice();
+        console.log("==============gasPrice================", gasPrice);
+        const gasPrices = {
+            low: web3.utils.toBN(gasPrice),
+            medium: web3.utils.toBN(gasPrice).muln(1.2),
+            high: web3.utils.toBN(gasPrice).muln(1.5),
+        };
+
+        return gasPrices;
+    } catch (error) {
+        console.log("error:", error);
+    }
+}
+
+export const toBNe18 = (web3: any, value: number): any => {
+    return web3.utils.toBN(web3.utils.toWei(value.toFixed(18).toString(), 'ether'));
+};
+
+export const toBNeN = (web3: any, value: number, decimals: number = 18): any => {
+    if (18 < decimals || decimals < 1) {
+        throw `Decimal must be between 1 to 18`;
+    }
+
+    return web3.utils.toBN(web3.utils.toWei(value.toFixed(18).toString())).div(web3.utils.toBN(10 ** (18 - decimals)));
+};
+
+export const getFullTxLink = (chainId: any, hash:any) => {
+
+    let prefixHttps = ''
+    if (chainId === uniconst.ETHEREUM_GOERLI_CHAIN_ID) {
+
+        prefixHttps = 'https://goerli.etherscan.io/tx/'
+
+    } else if (chainId === uniconst.ETHEREUM_GOERLI_CHAIN_ID) {
+
+        prefixHttps = 'https://etherscan.io/tx/'
+
+    } else if (chainId === uniconst.ETHEREUM_SEPOLIA_CHAIN_ID) {
+
+        prefixHttps = 'https://sepolia.etherscan.io/tx/'
+    } else if (chainId === uniconst.BSC_CHAIN_ID) {
+
+        prefixHttps = 'https://bscscan.com/tx/'
+    }
+
+    let txLink = `${prefixHttps}${hash}`
+
+    return txLink
+}

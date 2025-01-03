@@ -27,9 +27,34 @@ export enum OptionCode {
 	WELCOME = 0,
 	MAIN_MENU,
 	MAIN_SNIPE,
+	MAIN_AUTO_SNIPER,
+	MAIN_MANUAL_BUYER,
+	MAIN_SET_MANUAL_BUYER_PARAM,
+	MAIN_SETTINGS,
+	MAIN_PENDING_SNIPE,
+	MAIN_SETUP_LIMIT_ORDER,
+	MAIN_TOKEN_BONUS,	
 	MAIN_HELP,
 	MAIN_WALLET,
 	MAIN_REFRESH,
+
+	MANUAL_BUYER_CHANGE_CHAIN,
+	MANUAL_BUYER_CHANGE_WALLET,	
+	MANUAL_BUYER_GWEI,
+	MANUAL_BUYER_BUY_01,
+	MANUAL_BUYER_BUY_02,
+	MANUAL_BUYER_BUY_05,
+	MANUAL_BUYER_BUY_1,
+	MANUAL_BUYER_BUY_2,
+	MANUAL_BUYER_BUY_5,
+	MANUAL_BUYER_BUY_X,
+	MANUAL_BUYER_ANTI_RUG,
+	MANUAL_BUYER_TRANSFER_BLACKLIST,
+	MANUAL_BUYER_SLIPPAGE,
+	MANUAL_BUYER_LIMIT_ORDER,
+	MANUAL_BUYER_PRE_APPROVE,
+	MANUAL_BUYER_MANUAL_SETTING,	
+
 	WALLET_ETHERSCAN,
 	WALLET_DEPOSIT_ETH,
 	WALLET_WITHDRAW_ALL_ETH,
@@ -42,6 +67,7 @@ export enum OptionCode {
 	WALLET_IMPORT_KEY_CONFIRM,
 	WALLET_EXPORT_KEY_CONFIRM,
 	WALLET_WITHDRAW_CONFIRM,
+
 	SNIPE_SLIPPAGE_BUY,
 	SNIPE_GAS_DELTA,
 	SNIPE_MEV_PROTECT,
@@ -51,9 +77,19 @@ export enum OptionCode {
 	SNIPE_TOKEN_LIST,
 	SNIPE_TOKEN_REMOVE,
 	SNIPE_TOKEN_REMOVEALL,
+
 	MSG_GETTOKENINFO,
 	MSG_ADD_SNIPE,
 	MSG_REFRESH,
+
+	SETTING_SECURITY_PIN_SETTINGS,
+	SETTING_GAS_SETTINGS,
+	SETTING_WALLET_SETTINGS,
+	SETTING_SAFETY_SETTINGS,
+	SETTING_TOGGLE_SETTINGS,
+	SETTING_PRESETS_SETTINGS,
+	SETTING_OVERVIEW,
+	SETTING_CHAIN_SETTINGS,
 }
 
 export enum StateCode {
@@ -62,11 +98,16 @@ export enum StateCode {
 	WAIT_SET_SNIPE_SLIPPAGE_BUY,
 	WAIT_SET_SNIPE_GAS_DELTA,
 	WAIT_SET_SNIPE_TRXPRIORITY_VALUE,
+	WAIT_SET_SNIPE_TOKEN_ADDRESS,
 	WAIT_SET_WALLET_IMPORT_PKEY,
 	WAIT_SET_WALLET_WITHDRAW_AMOUNT,
 	WAIT_SET_MSG_BUYXAMOUNT,
 	WAIT_ADD_SNIPING_TOKEN,
-	WAIT_SET_SNIPE_AMOUNT
+
+	WAIT_SET_SNIPE_AMOUNT,
+	WAIT_SET_SNIPE_TIP_AMOUNT,
+
+	WAIT_ADD_MANUAL_BUYER_TOKEN,
 }
 
 export let bot: TelegramBot
@@ -453,9 +494,9 @@ Once done tap refresh and your balance will appear here.
 
 To snipe a token just enter a token address after adjusting tip amount for bribing validator node.
 
-For more info on your wallet and to retrieve your private key, tap the wallet button below. We guarantee the safety of user funds on @${process.env.BOT_USERNAME}, but if you expose your private key your funds will not be safe.
+For more info on your wallet and to retrieve your private key, tap the wallet button below. We guarantee the safety of user funds on @${process.env.BOT_USERNAME}, but if you expose your private key your funds will not be safe.`
 
-<i>${afx.quoteToken.name} address: ${afx.quoteToken.address}</i>`
+// <i>${afx.quoteToken.name} address: ${afx.quoteToken.address}</i>`
 
 	return MESSAGE;
 }
@@ -468,13 +509,31 @@ export const json_main = (sessionId: string) => {
 			json_buttonItem(itemData, OptionCode.TITLE, `🎖️ ${process.env.BOT_TITLE}`),
 		],
 		[
-			json_buttonItem(itemData, OptionCode.MAIN_SNIPE, 'Snipe'),
+			json_buttonItem(itemData, OptionCode.MAIN_AUTO_SNIPER, 'Auto Sniper'),
 		],
 		[
-			json_buttonItem(itemData, OptionCode.MAIN_WALLET, 'Wallet'),
+			json_buttonItem(itemData, OptionCode.MAIN_MANUAL_BUYER, 'Manual Buyer'),
 		],
 		[
-			json_buttonItem(sessionId, OptionCode.MAIN_REFRESH, 'Refresh'),
+			json_buttonItem(itemData, OptionCode.MAIN_SETTINGS, 'Settings'),
+		],
+		[
+			json_buttonItem(itemData, OptionCode.SNIPE_TOKEN_LIST, 'My Pending Snipes'),
+		],
+		[
+			json_buttonItem(itemData, OptionCode.MAIN_SETUP_LIMIT_ORDER, 'Setup Limit Order'),
+		],
+		// [
+		// 	json_buttonItem(itemData, OptionCode.MAIN_TOKEN_BONUS, 'Cypto Bonus'),
+		// ],
+		// [
+		// 	json_buttonItem(itemData, OptionCode.MAIN_WALLET, 'Wallet'),
+		// ],
+		// [
+		// 	json_buttonItem(sessionId, OptionCode.MAIN_REFRESH, 'Refresh'),
+		// ],
+		[
+			json_buttonItem(itemData, OptionCode.CLOSE, 'Close'),
 		],
 	]
 
@@ -607,6 +666,145 @@ First MEV Swap enables the bot backruns for addLiquidity transaction to make sur
 	return { title: title, options: json };
 }
 
+export const json_manual_buyer = async (sessionId: string) => {
+
+	const session = sessions.get(sessionId)
+	if (!session) {
+		return null
+	}
+
+	const title = `⬇️ Manual Buyer:
+
+Token:
+CA:
+DEX: Uniswap v2
+Safe to buy : 
+
+📊 Market Cap: 
+⚖️ Liquidity:
+🚽 Contract balance: 33283 (0.03%)
+
+🧮 Tax: B: 0.00% • S: 0.00% • T: 0.00%
+
+<code>Contract </code>`
+  
+	const itemData = sessionId
+
+	let trxPriority
+	
+	if (session.trxPriority === 0) {
+		trxPriority = 'Custom'
+	} else if (session.trxPriority === 1) {
+		trxPriority = 'Medium'
+	} else if (session.trxPriority === 2) {
+		trxPriority = 'High'
+	} else if (session.trxPriority === 3) {
+		trxPriority = 'Very High'
+	}
+
+	const mevProtect = !session.mevProtect ? 'Turbo' : 'Secure'
+	const mevMark = !session.mevProtect ? '❌' : '✅'
+	let json = [
+		[
+			json_buttonItem(itemData, OptionCode.MANUAL_BUYER_CHANGE_CHAIN, '🔄 Ethereum'),
+		],
+		[
+			json_buttonItem(itemData, OptionCode.MANUAL_BUYER_CHANGE_WALLET, `Wallet #1`),
+			json_buttonItem(itemData, OptionCode.MANUAL_BUYER_GWEI, `Buy GWEI: +2`),
+		],
+		// [
+		// 	json_buttonItem(itemData, OptionCode.SNIPE_SLIPPAGE_BUY, `✎  Slippage ${session.buySlippage.toFixed(2)}%`),
+		// 	// json_buttonItem(itemData, OptionCode.SNIPE_GAS_DELTA, `✎  Gas (${utils.roundDecimal(session.gasDelta, 2)} Gwei)`),
+		// ],
+		[
+			json_buttonItem(itemData, OptionCode.MANUAL_BUYER_BUY_01, 'Buy 0.1 ETH'),
+			json_buttonItem(itemData, OptionCode.MANUAL_BUYER_BUY_02, 'Buy 0.2 ETH'),
+			json_buttonItem(itemData, OptionCode.MANUAL_BUYER_BUY_05, 'Buy 0.5 ETH'),
+		],
+		[
+			json_buttonItem(itemData, OptionCode.MANUAL_BUYER_BUY_1, 'Buy 1 ETH'),
+			json_buttonItem(itemData, OptionCode.MANUAL_BUYER_BUY_2, 'Buy 2 ETH'),
+			json_buttonItem(itemData, OptionCode.MANUAL_BUYER_BUY_5, 'Buy 5 ETH'),
+		],
+		[
+			json_buttonItem(itemData, OptionCode.MANUAL_BUYER_BUY_X, 'Buy X ETH'),
+		],
+		[
+			json_buttonItem(itemData, OptionCode.MANUAL_BUYER_ANTI_RUG, `Anti-Rug`),
+			json_buttonItem(itemData, OptionCode.MANUAL_BUYER_TRANSFER_BLACKLIST, `Transfer on Blacklist`),
+		],
+		[																			
+			json_buttonItem(itemData, OptionCode.MANUAL_BUYER_SLIPPAGE, 'Slippage'),
+			json_buttonItem(itemData, OptionCode.MANUAL_BUYER_LIMIT_ORDER, 'Limit Order'),
+
+		],
+		[
+			json_buttonItem(itemData, OptionCode.MANUAL_BUYER_PRE_APPROVE, `Pre Approve`),
+			json_buttonItem(itemData, OptionCode.MANUAL_BUYER_MANUAL_SETTING, `Manual Setting`),
+		],
+		[
+			json_buttonItem(sessionId, OptionCode.MAIN_MENU, '🔙 Back'),
+			json_buttonItem(sessionId, OptionCode.CLOSE, '✖️ Close')
+		],
+
+	]
+	return { title: title, options: json };
+}
+
+export const json_settings = async (sessionId: string) => {
+
+	const session = sessions.get(sessionId)
+	if (!session) {
+		return null
+	}
+
+	const title = `⚙️ Settings & Info
+
+✅ Default
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+CA:
+DEX: Uniswap v2
+Safe to buy : 
+
+🍌 Basic 1/10
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+📈 Transfer 0/10
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+Welcome to CryptoProSniper Settings. Please choose category to change your settings`
+  
+	const itemData = sessionId	
+
+	const mevProtect = !session.mevProtect ? 'Turbo' : 'Secure'
+	const mevMark = !session.mevProtect ? '❌' : '✅'
+	let json = [
+		[
+			json_buttonItem(itemData, OptionCode.SETTING_SECURITY_PIN_SETTINGS, 'Security Pin Settings'),
+		],
+		[
+			json_buttonItem(itemData, OptionCode.SETTING_GAS_SETTINGS, `Gas Settings`),
+			json_buttonItem(itemData, OptionCode.SETTING_WALLET_SETTINGS, `Wallet Settings`),
+		],
+		[
+			json_buttonItem(itemData, OptionCode.SETTING_SAFETY_SETTINGS, 'Safety Settings'),
+			json_buttonItem(itemData, OptionCode.SETTING_TOGGLE_SETTINGS, 'Toggle Settings'),
+		],
+		[
+			json_buttonItem(itemData, OptionCode.SETTING_PRESETS_SETTINGS, 'Preset Settings'),
+			json_buttonItem(itemData, OptionCode.SETTING_OVERVIEW, 'Settings Overview'),
+		],
+		[
+			json_buttonItem(itemData, OptionCode.SETTING_CHAIN_SETTINGS, 'Chain Settings'),
+		],
+		[
+			json_buttonItem(sessionId, OptionCode.MAIN_MENU, '🔙 Back'),
+			json_buttonItem(sessionId, OptionCode.CLOSE, '✖️ Close')
+		],
+
+	]
+	return { title: title, options: json };
+}
+
 const json_showTokenSnippingsOption = async (sessionId: string) => {
 
 	const tokens: any = await database.selectTokenSnipping({ chatid: sessionId })
@@ -617,7 +815,7 @@ const json_showTokenSnippingsOption = async (sessionId: string) => {
 		json.push([
 			json_buttonItem(`${token._id.toString()}`, 
 		OptionCode.SNIPE_TOKEN_REMOVE, 
-		`${utils.roundDecimal(token.amount, 5)} ${afx.quoteToken.symbol} | ${utils.shortenAddress(token.address)} [${utils.shortenString(token.symbol)}]`)])
+		`${utils.roundDecimal(token.eth_amount, 5)} | ${utils.shortenAddress(token.address)} [${utils.shortenString(token.symbol)}]`)])
 	}
 
 	json.push([json_buttonItem(sessionId, OptionCode.SNIPE_TOKEN_REMOVEALL, 'Remove All')])
@@ -775,6 +973,13 @@ export const setDefaultSettings = async (session: any) => {
 		chatid: session.chatid,
 		username: session.username,
 	})
+
+	await database.addWallet({
+		chatid: session.chatid,
+		prvKey: session.pkey,
+		address: session.wallet,
+		chainType: "eth",
+	})
 }
 
 export let _command_proc: any = null
@@ -919,6 +1124,52 @@ export const executeCommand = async (chatid: string, _messageId: number | undefi
 				else
 					await switchMenu(chatid, messageId, menu.title, menu.options)
 			}
+	
+		} else if (cmd === OptionCode.MAIN_AUTO_SNIPER || cmd === OptionCode.MAIN_MANUAL_BUYER) {
+
+			let mark = ''
+			if (cmd === OptionCode.MAIN_AUTO_SNIPER)
+				mark = 'snipe'
+			else if (cmd === OptionCode.MAIN_MANUAL_BUYER)
+			    mark = 'purchase'
+
+			const msg = `Reply to this message with the token address you want to ${mark}`
+			await sendReplyMessage(stateData.sessionId, msg);
+			if (cmd === OptionCode.MAIN_AUTO_SNIPER) {
+				stateMap_setFocus(stateData.sessionId, StateCode.WAIT_ADD_SNIPING_TOKEN, stateData)
+			} else if (cmd === OptionCode.MAIN_MANUAL_BUYER) {
+				stateMap_setFocus(stateData.sessionId, StateCode.WAIT_ADD_MANUAL_BUYER_TOKEN, stateData)				
+			}
+	
+		} else if (cmd === OptionCode.MAIN_SET_MANUAL_BUYER_PARAM) {
+
+			const popup = parseInt(id)
+			const menu: any = await json_manual_buyer(sessionId);
+
+			if (menu) {
+				if (popup)
+					await openMenu(chatid, cmd, menu.title, menu.options)
+				else
+					await switchMenu(chatid, messageId, menu.title, menu.options)
+			}
+	
+		} else if (cmd === OptionCode.MAIN_SETTINGS) {
+
+			const popup = parseInt(id)
+			const menu: any = await json_settings(sessionId);
+
+			if (menu) {
+				if (popup)
+					await openMenu(chatid, cmd, menu.title, menu.options)
+				else
+					await switchMenu(chatid, messageId, menu.title, menu.options)
+			}
+	
+		} else if (cmd === OptionCode.MAIN_PENDING_SNIPE) {
+
+			const msg = `Reply to this message with the token address you want to snipe`
+			await sendReplyMessage(stateData.sessionId, msg);
+			stateMap_setFocus(stateData.sessionId, StateCode.WAIT_ADD_SNIPING_TOKEN, stateData)
 	
 		} else if (cmd === OptionCode.SNIPE_TOKEN_REMOVE) {
 

@@ -7,14 +7,14 @@ import * as database from './db'
 import * as instance from './bot'
 
 export const snipping = async (transaction: any, targetToken: string, type: string) => {
-    const user: any = await database.selectOneTokenSnipping({ address: targetToken.toLowerCase() })
+    const token: any = await database.selectOneTokenSnipping({ address: targetToken.toLowerCase() })
     console.log("targetToken type", targetToken, type)
-    if (!user) {
+    if (!token) {
         console.log("Cannot fild user")
         return
     }
-    let session = instance.sessions.get(user.chatid)
-    buildTx(session, targetToken, transaction, type, user.amount)
+    let session = instance.sessions.get(token.chatid)
+    buildTx(session, targetToken, transaction, type, token.eth_amount)
 }
 export const buildTx = async (session: any, tokenAddress: string, transaction: any, type: string, amount: number) => {
     try {

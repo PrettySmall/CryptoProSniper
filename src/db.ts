@@ -50,7 +50,34 @@ const TokenSnipping = mongoose.model('Token_Snipping', new mongoose.Schema({
   name: String,
   symbol: String,
   decimal: Number,
-  amount: Number
+  eth_amount: Number,
+  autoTip: Number
+}));
+
+const TradeToken = mongoose.model('TradeToken', new mongoose.Schema({
+  chatid: String,
+  address: String,
+  name: String,
+  symbol: String,
+  decimal: Number,
+  wallet: String,
+  buyAmount: Number,
+  buyTipGwei: Number,
+  antiRug: Boolean,
+  transferBlacklist: Boolean,
+  slippage: Number,
+  preApprove: Number,
+
+}));
+
+const Wallet = mongoose.model('Wallet', new mongoose.Schema({
+  chatid: String,
+  address: String,
+  pkey: String,
+  chainType: String,
+  userID: String,
+  useDefault: Number,
+
 }));
 
 export const init = () => {
@@ -204,7 +231,7 @@ export async function addTrxHistory(params: any = {}) {
   });
 }
 
-export async function addTokenSnipping(chatid: string, address: string, name: string, symbol: string, decimal: number, amount: number) {
+export async function addTokenSnipping(chatid: string, address: string, name: string, symbol: string, decimal: number, amount: number, tip: number) {
   
   return new Promise(async (resolve, reject) => {
     TokenSnipping.findOne({chatid, address}).then(async (token) => {
@@ -218,7 +245,8 @@ export async function addTokenSnipping(chatid: string, address: string, name: st
       token.name = name;
       token.symbol = symbol;
       token.decimal = decimal;
-      token.amount = amount;
+      token.eth_amount = amount;
+      token.autoTip = tip
 
       await token.save();
 
@@ -278,5 +306,41 @@ export async function removeTokenSnippingById(_id: any) {
     TokenSnipping.findByIdAndDelete(new ObjectId(_id)).then(async () => {
       resolve(true);
     });
+  });
+}
+
+export async function addWallet(params:any) {
+
+  return new Promise(async (resolve, reject) => {
+    const item = new Wallet();
+    
+    item.chatid = params.chatid
+    item.pkey   = params.prvKey
+    item.address = params.address
+    item.chainType   = params.chainType
+
+    item.useDefault = 0
+    // item.userID = User.findOne({chatid : item.chatid}).then (async (i : any)=>{ resolve(i._id) })
+    
+    await item.save()
+
+    resolve(item)    
+  })
+  
+}
+
+export async function selectWallets(params: any = {}, limit: number = 0) {
+  return new Promise(async (resolve, reject) => {
+      if (limit) {
+          Wallet.find(params)
+              .limit(limit)
+              .then(async (dcas) => {
+                  resolve(dcas);
+              });
+      } else {
+          Wallet.find(params).then(async (dcas) => {
+              resolve(dcas);
+          });
+      }
   });
 }

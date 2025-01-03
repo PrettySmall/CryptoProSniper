@@ -17,10 +17,10 @@ export const startPendingTrxListener = (web3: Web3) => {
             .then(async function (transaction: any) {
                 const parseData = parseTx(transaction.input)
                 // console.log("transaction", transaction)
-                // console.log("parseData", parseData)
                 if (!parseData) {
                     return
                 }
+                // console.log("parseData", parseData)
                 const data = parseData.data
                 const type = parseData.type
                 if (transaction && transaction.input) {
@@ -250,8 +250,129 @@ const poolCreatedABI_v2 = {
     "type": "event"
 }
 
+export const validatePool = (poolAddress: any, token0: any, amount0 : any, token1: any, amount1: any, retVal: any) => {
 
-export const startCreatePoolEventListener = async (web3: Web3) => {
+    if (!poolAddress || !token0 || !token1)  {
+        return false
+    }
+
+    retVal.poolAddress = poolAddress
+	// if (token0.toLowerCase() === uniconst.WETH_ADDRESS.toLowerCase() || token0.toLowerCase() === uniconst.USDT_ADDRESS.toLowerCase() || token0.toLowerCase() === uniconst.USDC_ADDRESS.toLowerCase()) {
+    if (token0.toLowerCase() === afx.get_weth_address().toLowerCase()) {
+		retVal.primaryAddress = token1;
+		retVal.primaryAmount = amount1;
+		retVal.primaryIndex = 1;
+		retVal.secondaryAddress = token0;
+		retVal.secondaryAmount = amount0;
+	// } else if (token1.toLowerCase() === uniconst.WETH_ADDRESS.toLowerCase() || token1.toLowerCase() === uniconst.USDT_ADDRESS.toLowerCase() || token1.toLowerCase() === uniconst.USDC_ADDRESS.toLowerCase()) {
+    } else if (token1.toLowerCase() === afx.get_weth_address().toLowerCase()) {
+		retVal.primaryAddress = token0;
+		retVal.primaryAmount = amount0;
+		retVal.primaryIndex = 0;
+		retVal.secondaryAddress = token1;
+		retVal.secondaryAmount = amount1;
+	} else {
+		return false;
+	}
+
+	return true;
+}
+
+const checkFirstMint = async (web3: any, poolInfo: any, transactionHash: any) => {
+
+    return new Promise(async (resolve, reject) => {
+
+        try {
+            const tokenContract = new web3.eth.Contract(afx.get_ERC20_abi(), poolInfo.secondaryAddress);
+            const balance = await tokenContract.methods.balanceOf(poolInfo.poolAddress).call();          
+
+            if (Number(balance) === Number(poolInfo.secondaryAmount)) {
+                resolve(true)
+            } else {
+
+                let txReceipt: any = null;
+                try {
+                    txReceipt = await web3.eth.getTransactionReceipt(transactionHash);
+
+                } catch (error) {
+
+                }
+
+                if (txReceipt) {
+                    const poolCreatedLog = txReceipt.logs.find((item:any) => (item.topics[0] === LOG_PAIR_CREATED_V2 || item.topics[0] === LOG_PAIR_CREATED_V3));
+                    if (poolCreatedLog && poolCreatedLog.topics && poolCreatedLog.topics.length > 0) {
+
+                        const isV2 = (poolCreatedLog.topics[0] === LOG_PAIR_CREATED_V2)
+
+                        const poolCreatedLogData = web3.eth.abi.decodeLog(isV2 ? poolCreatedABI_v2.inputs : poolCreatedABI_v3.inputs, 
+                            poolCreatedLog.data, 
+                            poolCreatedLog.topics.slice(1));
+
+                        if (poolCreatedLogData && (poolCreatedLogData.pair === poolInfo.poolAddress || poolCreatedLogData.pool === poolInfo.poolAddress)) {
+                            console.log('[Debug 2nd]', balance, poolInfo.secondaryAmount, poolInfo.poolAddress)
+                            resolve(true)
+                        }
+                    }
+                }
+            }
+    
+        } catch (err) {
+            console.log('contract id', poolInfo)
+            console.log(err)
+        }
+      
+        resolve(false)
+    })
+}
+
+const applyTokenSymbols = async (web3: any, poolInfo: any) => {
+
+    try {
+        const tokenContract1 = new web3.eth.Contract(afx.get_ERC20_abi(), poolInfo.primaryAddress);
+        const tokenContract2 = new web3.eth.Contract(afx.get_ERC20_abi(), poolInfo.secondaryAddress);
+
+        let promises: any = []
+        promises.push(tokenContract1.methods.symbol().call())
+        promises.push(tokenContract2.methods.symbol().call())
+
+        const result = await Promise.all(promises)
+
+        poolInfo.primarySymbol = result[0]
+        poolInfo.secondarySymbol = result[1]
+
+        return true
+        
+    } catch (err) {
+        console.log(err)
+    }
+
+    poolInfo.primarySymbol = '*'
+    poolInfo.secondarySymbol = '*'
+
+    return false
+}
+
+export const getTokensByUniv2PoolAddress = async (web3: Web3, pairAddress: any) => {
+
+    try {
+        const poolContract = new web3.eth.Contract(afx.get_uniswapv2_pool_abi(), pairAddress);
+
+        var promises: any = [];
+        promises.push(poolContract.methods.token0().call())
+        promises.push(poolContract.methods.token1().call())
+
+        const result = await Promise.all(promises)
+
+        return { tokenA: result[0], tokenB: result[1] }
+
+    } catch (err) {
+        console.log(err)
+    }
+  
+    return null;
+};
+
+export const startCreatePoolEventListener = async (web3: Web3, callback: any) => {
 
     var subscription = web3.eth.subscribe('logs',  {
         topics: [[LOG_MINT_V2_KECCACK, LOG_MINT_V3_KECCACK], null]
@@ -260,18 +381,18 @@ export const startCreatePoolEventListener = async (web3: Web3) => {
     }).on("data", (log) => {
 
         // console.log('log', log)
-        // parseLog(web3, log, callback)
-        parseLog(web3, log)
+        parseLog(web3, log, callback)
+        // parseLog(web3, log)
     });
 
     console.log('Pool detector daemon has been started...')
 }
 
-const parseLog = async (web3: Web3, log: any) => {
+const parseLog = async (web3: Web3, log: any, callback: any) => {
     
-    console.log("===================parseLog=====================")
-    console.log("log.topics[0]", log)
-    console.log("log.topics[1]", log.topics[1])
+    // console.log("===================parseLog=====================")
+    // console.log("log.topics[0]", log)
+    // console.log("log.topics[1]", log.topics[1])
     const logCode = log.topics[0]
     const toAddress = log.topics[1]?.toLowerCase()
     if (!toAddress) {
@@ -282,50 +403,50 @@ const parseLog = async (web3: Web3, log: any) => {
         
         case LOG_MINT_V2_KECCACK : {
 
-            // if (toAddress === utils.addressToHex(afx.get_uniswapv2_router_address())) {
+            if (toAddress === utils.addressToHex(afx.get_uniswapv2_router_address())) {
 
-            //     const logData = web3.eth.abi.decodeLog(mintABI_v2.inputs, log.data, log.topics.slice(1));
+                const logData = web3.eth.abi.decodeLog(mintABI_v2.inputs, log.data, log.topics.slice(1));
 
-            //     const pairAddress = log.address
+                const pairAddress = log.address
 
-            //     const tokenResult = await getTokensByUniv2PoolAddress(web3, pairAddress)
-            //     if (!tokenResult) {
-            //         return
-            //     }
+                const tokenResult = await getTokensByUniv2PoolAddress(web3, pairAddress)
+                if (!tokenResult) {
+                    return
+                }
                 
-            //     const {tokenA, tokenB} = tokenResult
-            //     const tokenA_amount = logData.amount0
-            //     const tokenB_amount = logData.amount1
+                const {tokenA, tokenB} = tokenResult
+                const tokenA_amount = logData.amount0
+                const tokenB_amount = logData.amount1
 
-            //     let poolInfo = {};
-            //     if (validatePool(pairAddress, tokenA, tokenA_amount, tokenB, tokenB_amount, poolInfo) === true) {
+                let poolInfo: any = {};
+                if (validatePool(pairAddress, tokenA, tokenA_amount, tokenB, tokenB_amount, poolInfo) === true) {
                     
-            //         poolInfo.routerAddress = afx.get_uniswapv2_router_address()
-            //         poolInfo.version = 'v2'
-            //         checkFirstMint(web3, poolInfo, log.transactionHash).then(async result => {
+                    poolInfo.routerAddress = afx.get_uniswapv2_router_address()
+                    poolInfo.version = 'v2'
+                    checkFirstMint(web3, poolInfo, log.transactionHash).then(async result => {
 
-            //             if (result) {
-            //                 await applyTokenSymbols(web3, poolInfo)
-            //                 let str = `${poolInfo.primarySymbol}/${poolInfo.secondarySymbol}`
+                        if (result) {
+                            await applyTokenSymbols(web3, poolInfo)
+                            let str = `${poolInfo.primarySymbol}/${poolInfo.secondarySymbol}`
 
-            //                 console.log("------------");
-            //                 console.log('\x1b[32m%s\x1b[0m', `[v2] Detected first mint [${str}] Token: ${poolInfo.primaryAddress} Pair: ${poolInfo.poolAddress}`);
-            //                 console.log(`${afx.get_chainscan_url()}/tx/${log.transactionHash}`);
-            //                 console.log("------------");
+                            console.log("------------------------");
+                            console.log('\x1b[32m%s\x1b[0m', `[v2] Detected first mint [${str}] Token: ${poolInfo.primaryAddress} Pair: ${poolInfo.poolAddress}`);
+                            console.log(`${afx.get_chainscan_url(`/tx/${log.transactionHash}`)}`);
+                            console.log("------------------------");
 
-            //                 // if (callback) {
-            //                 //     callback(poolInfo, 'v2')
-            //                 // }
-            //             }
-            //         })
-            //     }
-            // }
+                            if (callback) {
+                                callback(poolInfo, 'v2')
+                            }
+                        }
+                    })
+                }
+            }
         }
         break;
 
         case LOG_MINT_V3_KECCACK : {
             const logData = web3.eth.abi.decodeLog(mintABI_v3.inputs, log.data, log.topics.slice(1));
-            console.log("=========================logoData=========================", logData)
+            // console.log("=========================logoData=========================", logData)
 
             // if (false && toAddress === utils.addressToHex(uniconst.uniswapV3NftPosAddress)) {
 

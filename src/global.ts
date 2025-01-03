@@ -14,6 +14,7 @@ import { UNISWAP_V2_FACTORY_BYTECODE } from './bytecode/uniswapv2-factory'
 import { UNISWAP_V3_FACTORY_BYTECODE } from './bytecode/uniswapv3-factory'
 import { UNISWAP_V3_POOL_ABI } from './abi/uniswapv3-pool'
 import { UNISWAP_V3_NONFUNGIBLE_POSITION_MANAGER_ABI } from './abi/uniswapv3-nonfungiblePositionManager'
+import { UNISWAP_V2_POOL_ABI } from './abi/uniswapv2-pool-abi'
 
 enum Chains {
     Mainnet = 1,
@@ -54,6 +55,12 @@ export const parseError = (error: any): string => {
 
 export let FREE_TO_USE = Number(process.env.FREE_TO_USE)
 
+export const EthereumMainnet_ChainId = 1
+export const GoerliTestnet_ChainId = 5
+export const BinanceSmartChainMainnet_ChainId = 56
+export const Avalanche_ChainId = 43114
+export const PolygonMainnet_ChainId = 137
+
 export const TradingMonitorDuration = 24 * 60 * 60
 export const Max_Sell_Count = 10
 export const Swap_Fee_Percent = Number(process.env.BOT_FEE_PERCENT)
@@ -73,7 +80,7 @@ export let provider: any;
 export let quoteToken: any;
 
 export const init = async () => {
-    quoteToken = await utils.getTokenInfo(uniconst.QUOTE_TOKEN_ADDRESS)
+    quoteToken = await utils.getTokenInfo(uniconst.WETH_ADDRESS)
 }
 
 export const setWeb3 = (conn: Web3) => {
@@ -159,7 +166,18 @@ export const get_chainscan_url = (url: string): string => {
 
 export const get_ERC20_abi = () => {
 
-    return ERC20_ABI;
+    switch (get_chain_id()) {
+		case BinanceSmartChainMainnet_ChainId: {
+
+			// return BEP20_ABI;
+		}
+		case Avalanche_ChainId: {
+			return ERC20_ABI;
+		}
+		default: {
+			return ERC20_ABI;
+		}
+	}
 }
 
 export const get_uniswapv2_factory_abi = () => {
@@ -199,18 +217,83 @@ export const get_dexscreener_url = (tokenAddress: string): string => {
 
 export const get_uniswapv2_router_address = () => {
 
-    switch (get_net_mode()) {
-        case Chains.Mainnet: {
-            return process.env.MAINNET_RPC as string
-        }
-        case Chains.Goerli: {
-            return process.env.GOERLINET_RPC as string
-        }
-        case Chains.Base_Sepolia: {
-            return uniconst.uniswapV2RouterAddress as string
-        }
-        default: {
-            return uniconst.uniswapV2RouterAddress as string
-        }
-   }
+    switch (get_chain_id()) {
+		case BinanceSmartChainMainnet_ChainId: {
+
+			return uniconst.PancakeswapV2RouterAddress;
+		}
+		case Avalanche_ChainId: {
+
+			return uniconst.JoeV2RouterAddress;
+		}
+		default: {
+
+			return uniconst.uniswapV2RouterAddress
+		}
+	}
+}
+
+export const get_chain_id = () => {
+
+    return Number(process.env.CHAIN_MODE)
+}
+
+export const get_weth_address = () => {
+
+	switch (get_chain_id()) {
+		case BinanceSmartChainMainnet_ChainId: {
+
+			return uniconst.WBNB_ADDRESS;
+		}
+
+		case Avalanche_ChainId: {
+
+			return uniconst.WAVAX_ADDRESS;
+		}
+
+		case GoerliTestnet_ChainId: {
+
+			return uniconst.GOERLI_WETH_ADDRESS
+		}
+
+		default: {
+
+			return uniconst.WETH_ADDRESS
+		}
+	}
+}
+
+export const get_uniswapv2_pool_abi = () => { 
+
+	switch (get_chain_id()) {
+		case BinanceSmartChainMainnet_ChainId: {
+
+			return UNISWAP_V2_POOL_ABI;//PANCAKESWAP_V2_POOL_ABI;
+		}
+		case Avalanche_ChainId: {
+			return UNISWAP_V2_POOL_ABI;//JOE_V2_POOL_ABI;
+		}
+		default: {
+
+			return UNISWAP_V2_POOL_ABI;
+		}
+	}
+}
+
+
+export const get_chain_symbol = () => {
+
+	switch (get_chain_id()) {
+		case BinanceSmartChainMainnet_ChainId: {
+
+			return 'BSC'
+		}
+		case Avalanche_ChainId: {
+			return 'AVAX'
+		}
+		default: {
+
+			return 'ETH'
+		}
+	}
 }
